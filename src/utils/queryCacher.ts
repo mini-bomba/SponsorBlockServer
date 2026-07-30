@@ -1,10 +1,11 @@
 import redis, { TooManyActiveConnectionsError } from "#utils/redis";
 import { Logger } from "#utils/logger";
-import { skipSegmentsHashKey, skipSegmentsKey, reputationKey, ratingHashKey, skipSegmentGroupsKey, userFeatureKey, videoLabelsKey, videoLabelsHashKey, brandingHashKey, brandingKey, videoLabelsLargerHashKey, skipSegmentsLargerHashKey } from "#utils/redisKeys";
+import { skipSegmentsHashKey, skipSegmentsKey, reputationKey, ratingHashKey, skipSegmentGroupsKey, userFeatureKey, videoLabelsKey, videoLabelsHashKey, brandingHashKey, brandingKey, videoLabelsLargerHashKey, skipSegmentsLargerHashKey, slopContentHashKey, slopProfileHashKey, slopProfileFromContentHashKey } from "#utils/redisKeys";
 import { config } from "#config";
 
 import { Service, VideoID, VideoIDHash } from "#types/segments";
 import { Feature, HashedUserID, UserID } from "#types/user";
+import { ContentID, ContentIDHash, ProfileID, ProfileIDHash } from "#types/slop";
 
 async function get<T>(fetchFromDB: () => Promise<T>, key: string): Promise<T> {
     try {
@@ -143,6 +144,16 @@ function clearBrandingCache(videoInfo: { videoID: VideoID; hashedVideoID: VideoI
     }
 }
 
+function clearSlopCache(info: { contentID: ContentID; hashedContentID: ContentIDHash; profileID?: ProfileID; hashedProfileID: ProfileIDHash; }): void {
+    if (info) {
+        redis.del(slopContentHashKey(info.hashedContentID)).catch((err) => Logger.error(err));
+        redis.del(slopProfileFromContentHashKey(info.hashedContentID)).catch((err) => Logger.error(err));
+        if (info.profileID) {
+            redis.del(slopProfileHashKey(info.hashedProfileID)).catch((err) => Logger.error(err));
+        }
+    }
+}
+
 async function getKeyLastModified(key: string): Promise<Date> {
     if (!config.redis?.enabled) return Promise.reject("ETag - Redis not enabled");
     return await redis.ttl(key)
@@ -177,4 +188,5 @@ export const QueryCacher = {
     getKeyLastModified,
     clearRatingCache,
     clearFeatureCache,
+    clearSlopCache,
 };

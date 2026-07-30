@@ -6,6 +6,7 @@ import { BrandingUUID } from "#types/branding";
 import { Service, VideoID, VideoIDHash } from "#types/segments";
 import { Feature, HashedUserID, UserID } from "#types/user";
 import { HashedValue } from "#types/hash";
+import { ContentIDHash, ProfileIDHash } from "#types/slop";
 
 export const skipSegmentsKey = (videoID: VideoID, service: Service): string =>
     `segments.v4.${service}.videoID.${videoID}`;
@@ -40,6 +41,26 @@ export function brandingHashKey(hashedVideoIDPrefix: VideoIDHash, service: Servi
 export const brandingIPKey = (uuid: BrandingUUID): string =>
     `branding.v1.shadow.${uuid}`;
 
+export function slopContentHashKey(hashedContentID: ContentIDHash): string {
+    hashedContentID = hashedContentID.substring(0, 4) as ContentIDHash;
+    if (hashedContentID.length !== 4) Logger.warn(`Redis skip segment hash-prefix key is not length 4! ${hashedContentID}`);
+
+    return `slop.v1.${hashedContentID}`;
+}
+
+export function slopProfileHashKey(hashedProfileID: ProfileIDHash): string {
+    hashedProfileID = hashedProfileID.substring(0, 4) as ProfileIDHash;
+    if (hashedProfileID.length !== 4) Logger.warn(`Redis skip segment hash-prefix key is not length 4! ${hashedProfileID}`);
+
+    return `slop.v1.${hashedProfileID}`;
+}
+
+export function slopProfileFromContentHashKey(hashedContentID: ContentIDHash): string {
+    hashedContentID = hashedContentID.substring(0, 4) as ContentIDHash;
+    if (hashedContentID.length !== 4) Logger.warn(`Redis skip segment hash-prefix key is not length 4! ${hashedContentID}`);
+
+    return `slop.p.v1.${hashedContentID}`;
+}
 
 export const shadowHiddenIPKey = (videoID: VideoID, timeSubmitted: number, service: Service): string =>
     `segments.v1.${service}.videoID.${videoID}.shadow.${timeSubmitted}`;

@@ -31,6 +31,7 @@
     "lodash": "^4.18.1",
     "lru-cache": "^11.5.2",
     "lz4-napi": "^2.10.0",
+    "murmurhash3js": "^3.0.1",
     "pg": "^8.23.0",
     "rate-limit-redis": "^6.0.1",
     "redis": "^6.2.1",
