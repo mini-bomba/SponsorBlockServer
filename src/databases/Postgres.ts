@@ -2,7 +2,7 @@ import { Client, Pool, QueryResult, types } from "pg";
 import fs from "fs";
 
 import { Logger } from "#utils/logger";
-import { IDatabase, QueryOption, QueryType } from "#databases/IDatabase";
+import { IDatabase, QueryOption, QueryType, Transaction } from "#databases/IDatabase";
 import { timeoutPomise, PromiseWithState, savePromiseState, nextFulfilment } from "#utils/promise";
 
 import { CustomPostgresReadOnlyConfig, CustomWritePostgresConfig } from "#types/config";
@@ -184,6 +184,36 @@ export class Postgres implements IDatabase {
             && this.activePostgresRequests < this.config.postgresReadOnly.stopRetryThreshold);
 
         throw new Error(`prepare (postgres): ${type} ${query} failed after ${tries} tries`);
+    }
+
+    async transaction(transaction: Transaction) {
+        if (transaction.executed) return;
+
+        const client = await this.pool.connect();
+
+        try {
+            await client.query(`BEGIN`);
+
+            for (const query of transaction.queries) {
+                let count = 1;
+                for (let char = 0; char < query.query.length; char++) {
+                    if (query.query.charAt(char) === "?") {
+                        query.query = `${query.query.slice(0, char)}$${count}${query.query.slice(char + 1)}`;
+                        count++;
+                    }
+                }
+
+                await client.query(query.query, query.params);
+            }
+
+            await client.query(`COMMIT`);
+        } catch (e) {
+            await client.query(`ROLLBACK`);
+            throw e;
+        } finally {
+            transaction.executed = true;
+            client.release();
+        }
     }
 
     private getPool(type: string, options: QueryOption): Pool {
