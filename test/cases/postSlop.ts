@@ -1,11 +1,11 @@
 import assert from "assert";
-import * as murmurhash3js from "murmurhash3js";
 
 import { db } from "#databases/databases";
-import { BloomFilterID, numberOfHashes } from "#utils/bloomFilter";
+import { BloomFilterID } from "#utils/bloomFilter";
 
 import { arrayPartialDeepEquals, partialDeepEquals } from "#test/utils/partialDeepEquals";
 import { client } from "#test/utils/httpClient";
+import { checkBloom } from "#test/utils/bloomTest";
 
 export type Segment = {
     segment: number[];
@@ -20,35 +20,6 @@ export const postSlop = (data: Record<string, any>) => client({
     url: endpoint,
     data
 });
-
-function hashContent(data: string, bloomSize: number): number[] {
-    const result = new Array(numberOfHashes);
-    for (let i = 0; i < numberOfHashes; i++) {
-        result[i] = murmurhash3js.x86.hash32(data, i) % bloomSize;
-    }
-
-    return result;
-}
-
-function checkBloom(bloomData: Buffer, contentID: string): boolean {
-    const data = new Uint8Array(bloomData);
-
-    const hashes = hashContent(contentID, data.length * 8);
-    let success = false;
-    for (const hash of hashes) {
-        const hashByte = Math.floor(hash / 8);
-        const checkByte = data[hashByte];
-
-        if (!(checkByte & (1 << (7 - hash % 8)))) {
-            success = false;
-            break;
-        } else {
-            success = true;
-        }
-    }
-
-    return success;
-}
 
 describe("postSlop", () => {
     // Constant and helpers
@@ -355,5 +326,5 @@ describe("postSlop", () => {
                 })
                 .catch(err => done(err));
         });
-    })
+    });
 });
