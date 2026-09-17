@@ -1,5 +1,5 @@
-import { Category, Service, VideoID, VideoIDHash } from "./segments.model";
-import { UserID } from "./user.model";
+import { Category, Service, VideoID, VideoIDHash } from "#types/segments";
+import { UserID } from "#types/user";
 
 export type BrandingUUID = string & { readonly __brandingUUID: unique symbol };
 
@@ -117,6 +117,7 @@ export interface BrandingSegmentDBResult {
     endTime: number;
     category: Category;
     videoDuration: number;
+    timeSubmitted: number;
 }
 
 export interface CasualVoteDBResult {
@@ -131,6 +132,7 @@ export interface BrandingSegmentHashDBResult extends BrandingDBSubmissionData {
     endTime: number;
     category: Category;
     videoDuration: number;
+    timeSubmitted: number;
 }
 
 export interface CasualVoteHashDBResult extends BrandingDBSubmissionData {

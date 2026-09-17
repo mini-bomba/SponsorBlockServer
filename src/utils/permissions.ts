@@ -1,20 +1,23 @@
-import { config } from "../config";
-import { db, privateDB } from "../databases/databases";
-import { Category } from "../types/segments.model";
-import { Feature, HashedUserID } from "../types/user.model";
-import { hasFeature } from "./features";
-import { isUserVIP } from "./isUserVIP";
-import { oneOf } from "./promise";
-import redis from "./redis";
-import { getReputation } from "./reputation";
-import { getServerConfig } from "./serverConfig";
+import { parseInt } from "lodash";
+
+import { config } from "#config";
+import { db, privateDB } from "#databases/databases";
+import { hasFeature } from "#utils/features";
+import { isUserVIP } from "#utils/isUserVIP";
+import { oneOf } from "#utils/promise";
+import redis from "#utils/redis";
+import { getReputation } from "#utils/reputation";
+import { getServerConfig } from "#utils/serverConfig";
+
+import { Category } from "#types/segments";
+import { Feature, HashedUserID } from "#types/user";
 
 interface OldSubmitterResult {
     canSubmit: boolean;
     newUser: boolean;
 }
 
-interface CanSubmitResult {
+export interface CanSubmitResult {
     canSubmit: boolean;
     reason: string;
 }
@@ -26,7 +29,7 @@ interface CanSubmitGlobalResult {
 }
 
 async function lowDownvotes(userID: HashedUserID): Promise<boolean> {
-    const result = await db.prepare("get", `SELECT count(*) as "submissionCount", SUM(CASE WHEN "votes" < 0 AND "views" > 5 THEN 1 ELSE 0 END) AS "downvotedSubmissions" FROM "sponsorTimes" WHERE "userID" = ?`
+    const result = await db.prepare("get", `SELECT count(*) as "submissionCount", SUM(CASE WHEN "votes" < 0 THEN 1 ELSE 0 END) AS "downvotedSubmissions" FROM "sponsorTimes" WHERE "userID" = ? AND "views" > 5`
         , [userID], { useReplica: true });
 
     return result.submissionCount > 5 && result.downvotedSubmissions / result.submissionCount < 0.10;
@@ -46,7 +49,8 @@ async function oldSubmitterOrAllowed(userID: HashedUserID): Promise<OldSubmitter
     const isOldSubmitter = result.submissionCount >= 1;
     if (!isOldSubmitter) {
         await redis.zRemRangeByScore("submitters", "-inf", Date.now() - fiveMinutes);
-        const last5MinUsers = await redis.zCard("submitters");
+        let last5MinUsers = await redis.zCard("submitters");
+        if (typeof last5MinUsers === "string") last5MinUsers = parseInt(last5MinUsers);
 
         if (maxUsers && last5MinUsers < parseInt(maxUsers)) {
             await redis.zAdd("submitters", { score: Date.now(), value: userID });
@@ -81,7 +85,8 @@ async function oldDeArrowSubmitterOrAllowed(userID: HashedUserID): Promise<OldSu
         }
 
         await redis.zRemRangeByScore("submittersDeArrow", "-inf", Date.now() - fiveMinutes);
-        const last5MinUsers = await redis.zCard("submittersDeArrow");
+        let last5MinUsers = await redis.zCard("submittersDeArrow");
+        if (typeof last5MinUsers === "string") last5MinUsers = parseInt(last5MinUsers);
 
         if (maxUsers && last5MinUsers < parseInt(maxUsers)) {
             await redis.zAdd("submittersDeArrow", { score: Date.now(), value: userID });

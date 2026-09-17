@@ -1,13 +1,15 @@
 import { Request, Response } from "express";
 import { isEmpty } from "lodash";
-import { db } from "../databases/databases";
-import { ContentIDHash, ProfileIDHash } from "../types/slop.model";
-import { AllBloomFilters, numberOfHashes } from "../utils/bloomFilter";
-import { hashPrefixTester } from "../utils/hashPrefixTester";
-import { Logger } from "../utils/logger";
-import { QueryCacher } from "../utils/queryCacher";
-import { slopContentHashKey, slopProfileFromContentHashKey, slopProfileHashKey } from "../utils/redisKeys";
-import { slopVoteIDToNames } from "../utils/slop";
+
+import { db } from "#databases/databases";
+import { AllBloomFilters, numberOfHashes } from "#utils/bloomFilter";
+import { hashPrefixTester } from "#utils/hashPrefixTester";
+import { Logger } from "#utils/logger";
+import { QueryCacher } from "#utils/queryCacher";
+import { slopContentHashKey, slopProfileFromContentHashKey, slopProfileHashKey } from "#utils/redisKeys";
+import { slopVoteIDToNames } from "#utils/slop";
+
+import { ContentIDHash, ProfileIDHash } from "#types/slop";
 
 interface SlopByHashResult {
     content: Record<string, {
@@ -111,7 +113,7 @@ export async function getSlopByHashEndpoint(req: Request, res: Response) {
 }
 
 export async function getSlopBloomFilter(req: Request, res: Response) {
-    const bloomID = parseInt(req.params.bloomID);
+    const bloomID = parseInt(req.params.bloomID as string);
     if (!bloomID || isNaN(bloomID) || !AllBloomFilters.includes(bloomID)) {
         return res.status(400).send("Missing or invalid bloom filter ID");
     }
@@ -141,7 +143,7 @@ export async function getSlopBloomFilter(req: Request, res: Response) {
 
 const diffThreshold = 1000 * 60 * 60 * 24;
 export async function getSlopBloomDiff(req: Request, res: Response) {
-    const bloomID = parseInt(req.params.bloomID);
+    const bloomID = parseInt(req.params.bloomID as string);
     if (!bloomID || isNaN(bloomID) || !AllBloomFilters.includes(bloomID)) {
         return res.status(400).send("Missing or invalid bloom filter ID");
     }

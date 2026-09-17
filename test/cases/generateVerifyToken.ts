@@ -1,13 +1,15 @@
 import assert from "assert";
-import { config } from "../../src/config";
 import axios from "axios";
-import { createAndSaveToken, TokenType } from "../../src/utils/tokenUtils";
 import MockAdapter from "axios-mock-adapter";
+
+import { config } from "#config";
+import { createAndSaveToken, TokenType } from "#utils/tokenUtils";
+import { validateLicenseKeyRegex } from "#routes/verifyToken";
+
+import * as patreon from "#test/mocks/patreonMock";
+import { client } from "#test/utils/httpClient";
+
 let mock: MockAdapter;
-import * as patreon from "../mocks/patreonMock";
-import * as gumroad from "../mocks/gumroadMock";
-import { client } from "../utils/httpClient";
-import { validateLicenseKeyRegex } from "../../src/routes/verifyToken";
 
 const generateEndpoint = "/api/generateToken";
 const getGenerateToken = (type: string, code: string | null, adminUserID: string | null) => client({
@@ -23,7 +25,6 @@ const getVerifyToken = (licenseKey: string | null) => client({
 
 let patreonLicense: string;
 let localLicense: string;
-const gumroadLicense = gumroad.generateLicense();
 
 const extractLicenseKey = (data: string) => {
     const regex = /([A-Za-z0-9-]{5}-[A-Za-z0-9-]{5})/;
@@ -155,24 +156,6 @@ describe("verifyToken mock tests", function() {
         if (!config?.patreon) this.skip();
         mock.onGet(/identity/).reply(200, patreon.formerIdentityFail);
         getVerifyToken(patreonLicense).then(res => {
-            assert.strictEqual(res.status, 200);
-            assert.ok(!res.data.allowed);
-            done();
-        }).catch(err => done(err));
-    });
-
-    it("Should accept real gumroad key", function (done) {
-        mock.onPost("https://api.gumroad.com/v2/licenses/verify").reply(200, gumroad.licenseSuccess);
-        getVerifyToken(gumroadLicense).then(res => {
-            assert.strictEqual(res.status, 200);
-            assert.ok(res.data.allowed);
-            done();
-        }).catch(err => done(err));
-    });
-
-    it("Should reject fake gumroad key", function (done) {
-        mock.onPost("https://api.gumroad.com/v2/licenses/verify").reply(200, gumroad.licenseFail);
-        getVerifyToken(gumroadLicense).then(res => {
             assert.strictEqual(res.status, 200);
             assert.ok(!res.data.allowed);
             done();

@@ -1,10 +1,11 @@
-import { Logger } from "../utils/logger";
-import { IDatabase, QueryOption, QueryType, Transaction } from "./IDatabase";
 import { Client, Pool, QueryResult, types } from "pg";
-
 import fs from "fs";
-import { CustomPostgresReadOnlyConfig, CustomWritePostgresConfig } from "../types/config.model";
-import { timeoutPomise, PromiseWithState, savePromiseState, nextFulfilment } from "../utils/promise";
+
+import { Logger } from "#utils/logger";
+import { IDatabase, QueryOption, QueryType, Transaction } from "#databases/IDatabase";
+import { timeoutPomise, PromiseWithState, savePromiseState, nextFulfilment } from "#utils/promise";
+
+import { CustomPostgresReadOnlyConfig, CustomWritePostgresConfig } from "#types/config";
 
 // return numeric (pg_type oid=1700) as float
 types.setTypeParser(1700, function(val) {
@@ -123,7 +124,7 @@ export class Postgres implements IDatabase {
 
         if (this.config.postgres.maxActiveRequests && this.isReadQuery(type)
                 && this.activePostgresRequests > this.config.postgres.maxActiveRequests) {
-            throw new Error("Too many active postgres requests");
+            throw new Error(`Too many active postgres requests: active: ${this.activePostgresRequests}, read time: ${this.readResponseTime}, write time: ${this.writeResponseTime}`);
         }
 
         const start = Date.now();

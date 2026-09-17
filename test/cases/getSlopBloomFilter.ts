@@ -1,9 +1,11 @@
-import { arrayPartialDeepEquals, partialDeepEquals } from "../utils/partialDeepEquals";
-import { db } from "../../src/databases/databases";
 import assert from "assert";
-import { client } from "../utils/httpClient";
-import { BloomFilterID } from "../../src/utils/bloomFilter";
-import { checkBloom } from "../utils/bloomTest";
+
+import { db } from "#/databases/databases";
+import { BloomFilterID } from "#utils/bloomFilter";
+
+import { checkBloom } from "#test/utils/bloomTest";
+import { client } from "#test/utils/httpClient";
+import { arrayPartialDeepEquals, partialDeepEquals } from "#test/utils/partialDeepEquals";
 
 
 export type Segment = {

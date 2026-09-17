@@ -1,21 +1,23 @@
 import { Request, Response } from "express";
 import { isEmpty } from "lodash";
-import { config } from "../config";
-import { db, privateDB } from "../databases/databases";
-import { Postgres } from "../databases/Postgres";
-import { BrandingDBSubmission, BrandingDBSubmissionData, BrandingHashDBResult, BrandingResult, BrandingSegmentDBResult, BrandingSegmentHashDBResult, CasualVoteDBResult, CasualVoteHashDBResult, ThumbnailDBResult, ThumbnailResult, TitleDBResult, TitleResult } from "../types/branding.model";
-import { HashedIP, IPAddress, Service, VideoID, VideoIDHash, Visibility } from "../types/segments.model";
-import { shuffleArray } from "../utils/array";
-import { getHashCache } from "../utils/getHashCache";
-import { getIP } from "../utils/getIP";
-import { getService } from "../utils/getService";
-import { hashPrefixTester } from "../utils/hashPrefixTester";
-import { Logger } from "../utils/logger";
-import { promiseOrTimeout } from "../utils/promise";
-import { QueryCacher } from "../utils/queryCacher";
-import { brandingHashKey, brandingIPKey, brandingKey } from "../utils/redisKeys";
 import * as SeedRandom from "seedrandom";
-import { getEtag } from "../middleware/etag";
+
+import { config } from "#config";
+import { db, privateDB } from "#databases/databases";
+import { Postgres } from "#databases/Postgres";
+import { shuffleArray } from "#utils/array";
+import { getHashCache } from "#utils/getHashCache";
+import { getIP } from "#utils/getIP";
+import { getService } from "#utils/getService";
+import { hashPrefixTester } from "#utils/hashPrefixTester";
+import { Logger } from "#utils/logger";
+import { promiseOrTimeout } from "#utils/promise";
+import { QueryCacher } from "#utils/queryCacher";
+import { brandingHashKey, brandingIPKey, brandingKey } from "#utils/redisKeys";
+import { getEtag } from "#middleware/etag";
+
+import { BrandingDBSubmission, BrandingDBSubmissionData, BrandingHashDBResult, BrandingResult, BrandingSegmentDBResult, BrandingSegmentHashDBResult, CasualVoteDBResult, CasualVoteHashDBResult, ThumbnailDBResult, ThumbnailResult, TitleDBResult, TitleResult } from "#types/branding";
+import { HashedIP, IPAddress, Service, VideoID, VideoIDHash, Visibility } from "#types/segments";
 
 enum BrandingSubmissionType {
     Title = "title",
@@ -44,7 +46,7 @@ export async function getVideoBranding(res: Response, videoID: VideoID, service:
 
     const getSegments = () => db.prepare(
         "all",
-        `SELECT "startTime", "endTime", "category", "videoDuration" FROM "sponsorTimes" 
+        `SELECT "startTime", "endTime", "category", "videoDuration", "timeSubmitted" FROM "sponsorTimes" 
         WHERE "votes" > -2 AND "shadowHidden" = 0 AND "hidden" = 0 AND "actionType" = 'skip' AND "videoID" = ? AND "service" = ?
         ORDER BY "timeSubmitted" ASC`,
         [videoID, service],
@@ -123,7 +125,7 @@ export async function getVideoBrandingByHash(videoHashPrefix: VideoIDHash, servi
 
     const getSegments = () => db.prepare(
         "all",
-        `SELECT "videoID", "startTime", "endTime", "category", "videoDuration" FROM "sponsorTimes" 
+        `SELECT "videoID", "startTime", "endTime", "category", "videoDuration", "timeSubmitted" FROM "sponsorTimes" 
         WHERE "votes" > -2 AND "shadowHidden" = 0 AND "hidden" = 0 AND "actionType" = 'skip' AND "hashedVideoID" LIKE ? AND "service" = ?
         ORDER BY "timeSubmitted" ASC`,
         [`${videoHashPrefix}%`, service],
@@ -275,17 +277,20 @@ async function shouldKeepSubmission(submissions: BrandingDBSubmission[], type: B
     return (_, index) => shouldKeep[index];
 }
 
-export function findRandomTime(videoID: VideoID, segments: BrandingSegmentDBResult[], videoDuration: number): number {
-    let randomTime = SeedRandom.alea(videoID)();
+function simpleRandomTime(seed: string, hasOutro: boolean): number {
+    let randomTime = SeedRandom.alea(seed)();
 
     // Don't allow random times past 90% of the video if no endcard
-    if (!segments.some((s) => s.category === "outro") && randomTime > 0.9) {
+    if (!hasOutro && randomTime > 0.9) {
         randomTime -= 0.9;
     }
 
-    if (segments.length === 0) return randomTime;
+    return randomTime;
+}
 
-    videoDuration ||= Math.max(...segments.map((s) => s.endTime)); // use highest end time as a fallback here
+function findRandomTimeOldStyle(videoID: VideoID, segments: BrandingSegmentDBResult[], videoDuration: number): number {
+    const hasOutro = segments.some((s) => s.category === "outro");
+    const randomTime = simpleRandomTime(videoID, hasOutro);
 
     // There are segments, treat this as a relative time in the chopped up video
     const sorted = segments.sort((a, b) => a.startTime - b.startTime);
@@ -323,6 +328,34 @@ export function findRandomTime(videoID: VideoID, segments: BrandingSegmentDBResu
     return randomTime;
 }
 
+export function findRandomTime(videoID: VideoID, segments: BrandingSegmentDBResult[], videoDuration: number): number {
+    let randomTime = simpleRandomTime(videoID, false);
+    if (segments.length === 0) return randomTime;
+
+    videoDuration ||= Math.max(...segments.map((s) => s.endTime)); // use highest end time as a fallback here
+
+    // If any old segments, do old style for now
+    if (segments.some((a) => !a.timeSubmitted || a.timeSubmitted < 1789006995000)) {
+        return findRandomTimeOldStyle(videoID, segments, videoDuration);
+    }
+
+    const isOverlap = (a: BrandingSegmentDBResult) => a.startTime < randomTime * videoDuration && a.endTime > randomTime * videoDuration;
+
+    // Ensure random time isn't in segments
+    let tries = 0;
+    while (tries < 3 && segments.some(isOverlap)) {
+        randomTime = simpleRandomTime(videoID + tries, false);
+        tries++;
+    }
+
+    if (!segments.some(isOverlap)) {
+        return randomTime;
+    } else {
+        // Fall back to old style
+        return findRandomTimeOldStyle(videoID, segments, videoDuration);
+    }
+}
+
 export async function getBranding(req: Request, res: Response) {
     const videoID: VideoID = req.query.videoID as VideoID;
     const service: Service = getService(req.query.service as string);
@@ -339,7 +372,7 @@ export async function getBranding(req: Request, res: Response) {
 
         await getEtag("branding", (videoID as string), service)
             .then(etag => res.set("ETag", etag))
-            .catch(() => null);
+            .catch(() => null as void);
 
         const status = result.titles.length > 0 || result.thumbnails.length > 0 || result.casualVotes.length > 0 ? 200 : 404;
         return res.status(status).json(result);
@@ -366,7 +399,7 @@ export async function getBrandingByHashEndpoint(req: Request, res: Response) {
 
         await getEtag("brandingHash", (hashPrefix as string), service)
             .then(etag => res.set("ETag", etag))
-            .catch(() => null);
+            .catch(() => null as void);
 
         const status = !isEmpty(result) ? 200 : 404;
         return res.status(status).json(result);

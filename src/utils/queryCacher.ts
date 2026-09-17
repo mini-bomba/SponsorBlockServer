@@ -1,10 +1,11 @@
-import redis, { TooManyActiveConnectionsError } from "../utils/redis";
-import { Logger } from "../utils/logger";
-import { skipSegmentsHashKey, skipSegmentsKey, reputationKey, ratingHashKey, skipSegmentGroupsKey, userFeatureKey, videoLabelsKey, videoLabelsHashKey, brandingHashKey, brandingKey, videoLabelsLargerHashKey, skipSegmentsLargerHashKey, slopContentHashKey, slopProfileHashKey, slopProfileFromContentHashKey } from "./redisKeys";
-import { Service, VideoID, VideoIDHash } from "../types/segments.model";
-import { Feature, HashedUserID, UserID } from "../types/user.model";
-import { config } from "../config";
-import { ContentID, ContentIDHash, ProfileID, ProfileIDHash } from "../types/slop.model";
+import redis, { TooManyActiveConnectionsError } from "#utils/redis";
+import { Logger } from "#utils/logger";
+import { skipSegmentsHashKey, skipSegmentsKey, reputationKey, ratingHashKey, skipSegmentGroupsKey, userFeatureKey, videoLabelsKey, videoLabelsHashKey, brandingHashKey, brandingKey, videoLabelsLargerHashKey, skipSegmentsLargerHashKey, slopContentHashKey, slopProfileHashKey, slopProfileFromContentHashKey } from "#utils/redisKeys";
+import { config } from "#config";
+
+import { Service, VideoID, VideoIDHash } from "#types/segments";
+import { Feature, HashedUserID, UserID } from "#types/user";
+import { ContentID, ContentIDHash, ProfileID, ProfileIDHash } from "#types/slop";
 
 async function get<T>(fetchFromDB: () => Promise<T>, key: string): Promise<T> {
     try {
@@ -83,7 +84,7 @@ async function getAndSplit<T, U extends string>(fetchFromDB: (values: U[]) => Pr
                     result: JSON.parse(reply)
                 };
             }
-        } catch (e) { } //eslint-disable-line no-empty
+        } catch { } //eslint-disable-line no-empty
 
         return {
             value,
@@ -157,6 +158,9 @@ async function getKeyLastModified(key: string): Promise<Date> {
     if (!config.redis?.enabled) return Promise.reject("ETag - Redis not enabled");
     return await redis.ttl(key)
         .then(ttl => {
+            if (typeof ttl === "string") {
+                ttl = parseFloat(ttl);
+            }
             if (ttl <= 0) return new Date();
             const sinceLive = config.redis?.expiryTime - ttl;
             const now = Math.floor(Date.now() / 1000);

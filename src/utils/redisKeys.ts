@@ -1,10 +1,12 @@
-import { Service, VideoID, VideoIDHash } from "../types/segments.model";
-import { Feature, HashedUserID, UserID } from "../types/user.model";
-import { HashedValue } from "../types/hash.model";
-import { Logger } from "./logger";
-import { BrandingUUID } from "../types/branding.model";
-import { RedisCommandArgument } from "@redis/client/dist/lib/commands";
-import { ContentIDHash, ProfileIDHash } from "../types/slop.model";
+import { RedisArgument } from "redis";
+
+import { Logger } from "#utils/logger";
+
+import { BrandingUUID } from "#types/branding";
+import { Service, VideoID, VideoIDHash } from "#types/segments";
+import { Feature, HashedUserID, UserID } from "#types/user";
+import { HashedValue } from "#types/hash";
+import { ContentIDHash, ProfileIDHash } from "#types/slop";
 
 export const skipSegmentsKey = (videoID: VideoID, service: Service): string =>
     `segments.v4.${service}.videoID.${videoID}`;
@@ -103,6 +105,6 @@ export function userFeatureKey (userID: HashedUserID, feature: Feature): string 
     return `user.v1.${userID}.feature.${feature}`;
 }
 
-export function shouldClientCacheKey(key: RedisCommandArgument): boolean {
+export function shouldClientCacheKey(key: RedisArgument): boolean {
     return (key as string).match(/^(?:segments\.|reputation\.|branding\.|labels\.)/) !== null;
 }

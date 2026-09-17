@@ -1,6 +1,6 @@
-import { HashedValue } from "./hash.model";
-import { Service } from "./segments.model";
-import { UserID } from "./user.model";
+import { HashedValue } from "#types/hash";
+import { Service } from "#types/segments";
+import { UserID } from "#types/user";
 
 export type ContentID = string & { __contentIDBrand: unknown };
 export type ProfileID = string & { __profileIDBrand: unknown };

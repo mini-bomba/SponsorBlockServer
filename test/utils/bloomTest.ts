@@ -1,5 +1,6 @@
 import * as murmurhash3js from "murmurhash3js";
-import { numberOfHashes } from "../../src/utils/bloomFilter";
+
+import { numberOfHashes } from "#utils/bloomFilter";
 
 function hashContent(data: string, bloomSize: number): number[] {
     const result = new Array(numberOfHashes);

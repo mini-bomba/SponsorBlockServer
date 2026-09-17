@@ -1,8 +1,9 @@
-import { config } from "../config";
-import { db } from "../databases/databases";
-import { Transaction } from "../databases/IDatabase";
-import { acquireLock, acquireWaitingLock } from "./redisLock";
 import * as murmurhash3js from "murmurhash3js";
+
+import { config } from "#config";
+import { db } from "#databases/databases";
+import { Transaction } from "#databases/IDatabase";
+import { acquireLock, acquireWaitingLock } from "#utils/redisLock";
 
 export enum BloomFilterID {
     profileLeft = 101,

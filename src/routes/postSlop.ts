@@ -1,20 +1,21 @@
 import { Request, Response } from "express";
-import { config } from "../config";
 
-import { db } from "../databases/databases";
-import { IPAddress } from "../types/segments.model";
-import { modifyBloomFilters } from "../utils/bloomFilter";
-import { checkBanStatus } from "../utils/checkBan";
-import { getHashCache } from "../utils/getHashCache";
-import { getIP } from "../utils/getIP";
-import { isUserVIP } from "../utils/isUserVIP";
-import { Logger } from "../utils/logger";
-import { acquireLock } from "../utils/redisLock";
-import { isRequestInvalid } from "../utils/requestValidator";
-import { parseUserAgent } from "../utils/userAgent";
-import { SlopSubmission } from "../types/slop.model";
-import { QueryCacher } from "../utils/queryCacher";
-import { slopVoteIDToNames, slopVoteNamesToID } from "../utils/slop";
+import { config } from "#config";
+import { db } from "#databases/databases";
+import { modifyBloomFilters } from "#utils/bloomFilter";
+import { checkBanStatus } from "#utils/checkBan";
+import { getHashCache } from "#utils/getHashCache";
+import { getIP } from "#utils/getIP";
+import { isUserVIP } from "#utils/isUserVIP";
+import { Logger } from "#utils/logger";
+import { acquireLock } from "#utils/redisLock";
+import { isRequestInvalid } from "#utils/requestValidator";
+import { parseUserAgent } from "#utils/userAgent";
+import { QueryCacher } from "#utils/queryCacher";
+import { slopVoteIDToNames, slopVoteNamesToID } from "#utils/slop";
+
+import { SlopSubmission } from "#types/slop";
+import { IPAddress } from "#types/segments";
 
 export async function postSlop(req: Request, res: Response) {
     const { userID, contentID, profileID, comment, rating, votes, wholeProfile } = req.body as SlopSubmission;

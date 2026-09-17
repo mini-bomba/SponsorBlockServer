@@ -1,6 +1,7 @@
 import { PoolConfig } from "pg";
 import * as redis from "redis";
-import { DeArrowType } from "./segments.model";
+
+import { DeArrowType } from "#types/segments";
 
 interface RedisConfig extends redis.RedisClientOptions {
     enabled: boolean;
@@ -133,9 +134,6 @@ export interface SBSConfig {
         minPrice: number,
         redirectUri: string
     }
-    gumroad: {
-        productPermalinks: string[],
-    },
     tokenSeed: string,
     minUserIDLength: number,
     deArrowPaywall: boolean,
